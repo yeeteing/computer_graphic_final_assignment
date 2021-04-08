@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title> three.js webgl - ShadowMesh </title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="../main.css">
+</head>
+
+<body>
+	<div id="info">
+		<input id="lightButton" type="button" value="Activate the moving light">
+		<input id="spotLightButton" type="button" value="Turn OFF SpotLight attached to camera">
+		<div id="ambientContainer" style="border:0; color:#f6931f; font-weight:bold;">
+			<b>Ambient Light</b>
+			<input type="range" value="50" step="1" min="0" max="100" id="ambientLightRange">
+			<label><span id="ambientRange" readonly></span></label>
+		</div>
+		<h3><b>Keyboard</b> Control: </br></h3>
+		<div style="color: rgb(134, 211, 230)">
+			<b>(T: top, L: left, R: right) </b>light positioning
+		</div>
+		<div style="color: rgb(230, 230, 134)">
+			<b>F</b> Flat Shading
+			<b>S</b> Smooth Shading
+		</div>
+
+
+	</div>
+
+	<div id="container"></div>
+
+	<script type="module">
+
+		import * as THREE from '../resources/three.module.js';
+
+		import { ShadowMesh } from 'https://unpkg.com/three/examples/jsm/objects/ShadowMesh.js';
+
+		import { VertexNormalsHelper } from 'https://unpkg.com/three/examples/jsm/helpers/VertexNormalsHelper.js';
+
+		import { OrbitControls } from 'https://threejsfundamentals.org/threejs/resources/threejs/r125/examples/jsm/controls/OrbitControls.js';
+
+		let SCREEN_WIDTH = window.innerWidth;
+		let SCREEN_HEIGHT = window.innerHeight;
+
+		const scene = new THREE.Scene();
+		const camera = new THREE.PerspectiveCamera(55, SCREEN_WIDTH / SCREEN_HEIGHT, 1, 3000);
+
+		const clock = new THREE.Clock();
+		const renderer = new THREE.WebGLRenderer();
+
+		// light sources
+		const sunLight = new THREE.DirectionalLight('rgb(255,255,255)', 1);
+		const ambientLight = new THREE.AmbientLight(0xffff00, 0.05)
+		const lightLeft = new THREE.PointLight(0xfff600, 1);
+		const lightRight = new THREE.PointLight(0xff6600, 1);
+		const spotLight = new THREE.SpotLight(0xFFFFFF, 1);
+
+		let useDirectionalLight = true;
+		let useSpotLight = true;
+		let arrowHelper1, arrowHelper2, arrowHelper3;
+		const arrowDirection = new THREE.Vector3();
+		const arrowPosition1 = new THREE.Vector3();
+		const arrowPosition2 = new THREE.Vector3();
+		const arrowPosition3 = new THREE.Vector3();
+		let groundMesh;
+		let lightSphere, lightHolder;
+		let pyramid, pyramidShadow, pyramidShadow_left, pyramidShadow_right;
+		let sphere, sphereShadow, sphereShadow_left, sphereShadow_right;
+		let cube, cubeShadow, cubeShadow_left, cubeShadow_right;
+		let cylinder, cylinderShadow, cylinderShadow_left, cylinderShadow_right;
+		let torus, torusShadow, torusShadow_left, torusShadow_right;
+		const normalVector = new THREE.Vector3(0, 1, 0);
+		const planeConstant = 0.01; // this value must be slightly higher than the groundMesh's y position of 0.0
+		const groundPlane = new THREE.Plane(normalVector, planeConstant);
+		const lightPosition4D = new THREE.Vector4();
+		const lightPosition4D_left = new THREE.Vector4();
+		const lightPosition4D_right = new THREE.Vector4();
+		let verticalAngle = 0;
+		let horizontalAngle = 0;
+		let frameTime = 0;
+		const TWO_PI = Math.PI * 2;
+
+		let controls;
+
+		// helpers
+		let helper_square, helper_sphere, helper_cylinder, helper_torus, helper_pyramid
+
+		init();
+		animate();
+
+		function init() {
+			const container = document.querySelector('#container');
+			controls = new OrbitControls(camera, container);
+			controls.target.set(0, 0, 0);
+			controls.update();
+
+			scene.background = new THREE.Color(0x0096ff);
+
+			renderer.setPixelRatio(window.devicePixelRatio);
+			renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+			document.getElementById("container").appendChild(renderer.domElement);
+			window.addEventListener('resize', onWindowResize);
+
+			camera.add(spotLight)
+			camera.position.set(0, 2.5, 10);
+			scene.add(camera);
+			onWindowResize();
+
+			// top light
+			sunLight.position.set(0, 6, - 1);
+			sunLight.lookAt(scene.position);
+			scene.add(sunLight);
+			// left light
+			lightLeft.position.set(-5, 6, - 1);
+			lightLeft.lookAt(scene.position);
+			scene.add(lightLeft);
+			// right light
+			lightRight.position.set(5, 6, - 1);
+			lightRight.lookAt(scene.position);
+			scene.add(lightRight);
+
+			// ambient light
+			scene.add(ambientLight);
+
+			// spot light
+			// spotLight.position.set(5, 6, - 1);
+			// spotLight.lookAt(scene.position);
+			// scene.add(spotLight);
+			// console.log("   ", controls.object.position);
+
+			// top positions
+			lightPosition4D.x = sunLight.position.x;
+			lightPosition4D.y = sunLight.position.y;
+			lightPosition4D.z = sunLight.position.z;
+			// amount of light-ray divergence. Ranging from:
+			// 0.001 = sunlight(min divergence) to 1.0 = pointlight(max divergence)
+			lightPosition4D.w = 0.001; // must be slightly greater than 0, due to 0 causing matrixInverse errors
+
+			lightPosition4D_left.x = lightLeft.position.x;
+			lightPosition4D_left.y = lightLeft.position.y;
+			lightPosition4D_left.z = lightLeft.position.z;
+			lightPosition4D_left.w = 0.001; // must be slightly greater than 0, due to 0 causing matrixInverse errors
+
+			lightPosition4D_right.x = lightRight.position.x;
+			lightPosition4D_right.y = lightRight.position.y;
+			lightPosition4D_right.z = lightRight.position.z;
+			lightPosition4D_right.w = 0.001; // must be slightly greater than 0, due to 0 causing matrixInverse errors
+
+			// YELLOW ARROW HELPERS
+			// Top, Left, and right
+			arrowDirection.subVectors(scene.position, sunLight.position).normalize();
+			arrowPosition1.copy(sunLight.position);
+			arrowHelper1 = new THREE.ArrowHelper(arrowDirection, arrowPosition1, 0.9, 0xffff00, 0.25, 0.08);
+			scene.add(arrowHelper1);
+
+			arrowDirection.subVectors(scene.position, lightLeft.position).normalize();
+			arrowPosition2.copy(lightLeft.position);
+			arrowHelper2 = new THREE.ArrowHelper(arrowDirection, arrowPosition2, 0.9, 0xfff600, 0.25, 0.08);
+			scene.add(arrowHelper2);
+
+			arrowDirection.subVectors(scene.position, lightRight.position).normalize();
+			arrowPosition3.copy(lightRight.position);
+			arrowHelper3 = new THREE.ArrowHelper(arrowDirection, arrowPosition3, 0.9, 0xff6600, 0.25, 0.08);
+			scene.add(arrowHelper3);
+
+			// LIGHTBULB
+			const lightSphereGeometry = new THREE.SphereGeometry(0.09);
+			const lightSphereMaterial = new THREE.MeshBasicMaterial({ color: 'rgb(255,255,0)' });
+			lightSphere = new THREE.Mesh(lightSphereGeometry, lightSphereMaterial);
+			scene.add(lightSphere);
+			lightSphere.visible = false;
+			//
+			// lightSphere.castShadow = true;
+
+			const lightHolderGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.13);
+			const lightHolderMaterial = new THREE.MeshBasicMaterial({ color: 'rgb(75,75,75)' });
+			lightHolder = new THREE.Mesh(lightHolderGeometry, lightHolderMaterial);
+			scene.add(lightHolder);
+			lightHolder.visible = false;
+
+			// GROUND
+			const groundGeometry = new THREE.BoxGeometry(30, 0.01, 40);
+			const groundMaterial = new THREE.MeshLambertMaterial({ color: 'rgb(0,130,0)' });
+			groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+			groundMesh.position.y = 0.0; //this value must be slightly lower than the planeConstant (0.01) parameter above
+			scene.add(groundMesh);
+
+			// RED CUBE and CUBE's SHADOW
+			const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+			const cubeMaterial = new THREE.MeshLambertMaterial({ color: 'rgb(255,0,0)', emissive: 0x200000 });
+			cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+			cube.position.z = - 1;
+			scene.add(cube);
+			// normals helper
+			helper_square = new VertexNormalsHelper(cube, 0.5, 0x00ff00, 1);
+			scene.add(helper_square);
+
+			cubeShadow = new ShadowMesh(cube);
+			scene.add(cubeShadow);
+
+			cubeShadow_left = new ShadowMesh(cube);
+			scene.add(cubeShadow_left);
+
+			cubeShadow_right = new ShadowMesh(cube);
+			scene.add(cubeShadow_right);
+
+			cubeShadow_left.material.color.setHex(0xfff600);
+			cubeShadow_right.material.color.setHex(0xff6600);
+
+			// BLUE CYLINDER and CYLINDER's SHADOW
+			const cylinderGeometry = new THREE.CylinderGeometry(0.3, 0.3, 2);
+			const cylinderMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(0,0,255)', emissive: 0x000020 });
+			cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+			cylinder.position.z = - 2.5;
+			scene.add(cylinder);
+			// normals helper
+			helper_cylinder = new VertexNormalsHelper(cylinder, 0.5, 0x00ff00, 1);
+			scene.add(helper_cylinder);
+
+			cylinderShadow = new ShadowMesh(cylinder);
+			scene.add(cylinderShadow);
+
+			cylinderShadow_left = new ShadowMesh(cylinder);
+			scene.add(cylinderShadow_left);
+
+			cylinderShadow_right = new ShadowMesh(cylinder);
+			scene.add(cylinderShadow_right);
+
+			cylinderShadow_left.material.color.setHex(0xfff600);
+			cylinderShadow_right.material.color.setHex(0xff6600);
+
+			// MAGENTA TORUS and TORUS' SHADOW
+			const torusGeometry = new THREE.TorusGeometry(1, 0.2, 10, 16, TWO_PI);
+			const torusMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(255,0,255)', emissive: 0x200020 });
+			torus = new THREE.Mesh(torusGeometry, torusMaterial);
+			torus.position.z = - 6;
+			scene.add(torus);
+			// normals helper
+			helper_torus = new VertexNormalsHelper(torus, 0.5, 0x00ff00, 1);
+			scene.add(helper_torus);
+
+			torusShadow = new ShadowMesh(torus);
+			scene.add(torusShadow);
+
+			torusShadow_left = new ShadowMesh(torus);
+			scene.add(torusShadow_left);
+
+			torusShadow_right = new ShadowMesh(torus);
+			scene.add(torusShadow_right);
+
+			torusShadow_left.material.color.setHex(0xfff600);
+			torusShadow_right.material.color.setHex(0xff6600);
+
+			// WHITE SPHERE and SPHERE'S SHADOW
+			const sphereGeometry = new THREE.SphereGeometry(0.5, 20, 10);
+			const sphereMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(255,255,255)', emissive: 0x222222 });
+			sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+			sphere.position.set(4, 0.5, 2);
+			scene.add(sphere);
+			// normals helper
+			helper_sphere = new VertexNormalsHelper(sphere, 0.5, 0xff00ff, 1);
+			scene.add(helper_sphere);
+
+			sphereShadow = new ShadowMesh(sphere);
+			scene.add(sphereShadow);
+
+			sphereShadow_left = new ShadowMesh(sphere);
+			scene.add(sphereShadow_left);
+
+			sphereShadow_right = new ShadowMesh(sphere);
+			scene.add(sphereShadow_right);
+
+			sphereShadow_left.material.color.setHex(0xfff600);
+			sphereShadow_right.material.color.setHex(0xff6600);
+
+			// YELLOW PYRAMID and PYRAMID'S SHADOW
+			const pyramidGeometry = new THREE.CylinderGeometry(0, 0.5, 2, 4);
+			const pyramidMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(255,255,0)', emissive: 0x440000, shininess: 0 });
+			pyramid = new THREE.Mesh(pyramidGeometry, pyramidMaterial);
+			pyramid.position.set(- 4, 1, 2);
+			scene.add(pyramid);
+			// normals helper
+			helper_pyramid = new VertexNormalsHelper(pyramid, 0.5, 0xff00ff, 1);
+			scene.add(helper_pyramid);
+
+			pyramidShadow = new ShadowMesh(pyramid);
+			scene.add(pyramidShadow);
+
+			pyramidShadow_left = new ShadowMesh(pyramid);
+			scene.add(pyramidShadow_left);
+
+			pyramidShadow_right = new ShadowMesh(pyramid);
+			scene.add(pyramidShadow_right);
+
+			pyramidShadow_left.material.color.setHex(0xfff600);
+			pyramidShadow_right.material.color.setHex(0xff6600);
+
+			document.getElementById('lightButton').addEventListener('click', lightButtonHandler);
+			document.getElementById('spotLightButton').addEventListener('click', spotLightButtonHandler);
+			document.addEventListener('keydown', onKeyDown);
+
+			document.getElementById("ambientRange").innerHTML = "50";
+			document.getElementById("ambientLightRange").addEventListener("input", ambientLightSlider);
+
+			document.addEventListener('mousemove', onMouseMove);
+
+		}
+
+		function onMouseMove(e) {
+			// console.log("cqmera: ", controls.object.position);
+
+		}
+
+		function ambientLightSlider(event) {
+			const sliderValue = event.target.value;
+			document.getElementById("ambientRange").innerHTML = sliderValue;
+			const intensityValue = sliderValue / 100;
+			ambientLight.intensity = intensityValue;
+		}
+
+		function animate() {
+
+			requestAnimationFrame(animate);
+
+			frameTime = clock.getDelta();
+
+			cube.rotation.x += 1.0 * frameTime;
+			cube.rotation.y += 1.0 * frameTime;
+
+			cylinder.rotation.y += 1.0 * frameTime;
+			cylinder.rotation.z -= 1.0 * frameTime;
+
+			torus.rotation.x -= 1.0 * frameTime;
+			torus.rotation.y -= 1.0 * frameTime;
+
+			pyramid.rotation.y += 0.5 * frameTime;
+
+			horizontalAngle += 0.5 * frameTime;
+			if (horizontalAngle > TWO_PI)
+				horizontalAngle -= TWO_PI;
+			cube.position.x = Math.sin(horizontalAngle) * 4;
+			cylinder.position.x = Math.sin(horizontalAngle) * - 4;
+			torus.position.x = Math.cos(horizontalAngle) * 4;
+
+			if (!useDirectionalLight) { // when it's point light
+				// moving light bulb
+				lightHolder.position.y = Math.sin(verticalAngle) * 2 + 6 + 0.12;
+				lightSphere.position.y = Math.sin(verticalAngle) * 2 + 6;
+				sunLight.position.set(lightHolder.position.x, lightHolder.position.y, lightHolder.position.z);
+				// sunLight.lookAt( scene.position );
+				lightPosition4D.x = sunLight.position.x;
+				lightPosition4D.y = sunLight.position.y;
+				lightPosition4D.z = sunLight.position.z;
+			}
+
+
+			verticalAngle += 1.5 * frameTime;
+			if (verticalAngle > TWO_PI)
+				verticalAngle -= TWO_PI;
+			cube.position.y = Math.sin(verticalAngle) * 2 + 2.9;
+			cylinder.position.y = Math.sin(verticalAngle) * 2 + 3.1;
+			torus.position.y = Math.cos(verticalAngle) * 2 + 3.3;
+
+			// update the ShadowMeshes to follow their shadow-casting objects
+			cubeShadow.update(groundPlane, lightPosition4D);
+			cylinderShadow.update(groundPlane, lightPosition4D);
+			torusShadow.update(groundPlane, lightPosition4D);
+			sphereShadow.update(groundPlane, lightPosition4D);
+			pyramidShadow.update(groundPlane, lightPosition4D);
+
+			cubeShadow_left.update(groundPlane, lightPosition4D_left);
+			cylinderShadow_left.update(groundPlane, lightPosition4D_left);
+			torusShadow_left.update(groundPlane, lightPosition4D_left);
+			sphereShadow_left.update(groundPlane, lightPosition4D_left);
+			pyramidShadow_left.update(groundPlane, lightPosition4D_left);
+
+			cubeShadow_right.update(groundPlane, lightPosition4D_right);
+			cylinderShadow_right.update(groundPlane, lightPosition4D_right);
+			torusShadow_right.update(groundPlane, lightPosition4D_right);
+			sphereShadow_right.update(groundPlane, lightPosition4D_right);
+			pyramidShadow_right.update(groundPlane, lightPosition4D_right);
+
+			if (helper_square) helper_square.update();
+			if (helper_cylinder) helper_cylinder.update();
+			if (helper_pyramid) helper_pyramid.update();
+			if (helper_sphere) helper_sphere.update();
+			if (helper_torus) helper_torus.update();
+
+			renderer.render(scene, camera);
+
+		}
+
+		function onWindowResize() {
+
+			SCREEN_WIDTH = window.innerWidth;
+			SCREEN_HEIGHT = window.innerHeight;
+
+			renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+
+			camera.aspect = SCREEN_WIDTH / SCREEN_HEIGHT;
+			camera.updateProjectionMatrix();
+
+		}
+		function spotLightButtonHandler() {
+			useSpotLight = !useSpotLight;
+			if(useSpotLight){
+				spotLight.visible = useSpotLight;
+				document.getElementById('spotLightButton').value = "Turn OFF SpotLight attached to camera";
+
+			} else {
+				spotLight.visible = useSpotLight;
+				document.getElementById('spotLightButton').value = "Turn ON SpotLight attached to camera";
+			}
+			
+		}
+
+		function lightButtonHandler() {
+
+			useDirectionalLight = !useDirectionalLight;
+			// get the ambientLightRange slider container
+			var ambientContainer = document.getElementById("ambientContainer");
+
+			if (useDirectionalLight) {
+				// if it is using ambient light, show ambient light slider
+				ambientContainer.style.display = "block";
+
+				// deactivate sunlight
+				sunLight.visible = false;
+				ambientLight.visible = true;
+				sunLight.position.set(0, 6, - 1); // restore the sunlight from the top
+				sunLight.lookAt(scene.position);
+				lightPosition4D.x = sunLight.position.x;
+				lightPosition4D.y = sunLight.position.y;
+				lightPosition4D.z = sunLight.position.z;
+				lightPosition4D.w = 0.1; // more of a point Light value
+
+				lightSphere.visible = false;
+				lightHolder.visible = false;
+
+				document.getElementById('lightButton').value = "Activate the moving light";
+
+			} else {
+				// else hide the slider
+				ambientContainer.style.display = "none";
+
+				// activate directional light
+				sunLight.visible = true;
+				ambientLight.visible = false;
+
+				sunLight.position.set(0, 6, - 2);
+				sunLight.lookAt(scene.position);
+				lightSphere.position.copy(sunLight.position);
+				lightHolder.position.copy(lightSphere.position);
+				lightHolder.position.y += 0.12;
+
+				lightPosition4D.x = sunLight.position.x;
+				lightPosition4D.y = sunLight.position.y;
+				lightPosition4D.z = sunLight.position.z;
+				lightPosition4D.w = 0.9; // more of a point Light value
+
+				lightSphere.visible = true;
+				lightHolder.visible = true;
+				// deactivate arrow
+				arrowHelper1.visible = false;
+
+				document.getElementById('lightButton').value = "Deactivate the moving light";
+
+			}
+
+		}
+
+		function onKeyDown(event) {
+
+			var delta = 20;
+
+			switch (event.keyCode) {
+
+				case 84: /* T */
+					var tmp = sunLight.visible;
+					if (tmp) {
+						sunLight.visible = false;
+						arrowHelper1.visible = false;
+
+						// shadows
+						cubeShadow.visible = false;
+						cylinderShadow.visible = false;
+						torusShadow.visible = false;
+						sphereShadow.visible = false;
+						pyramidShadow.visible = false;
+					} else {
+						sunLight.visible = true;
+						arrowHelper1.visible = true;
+
+						// shadows
+						cubeShadow.visible = true;
+						cylinderShadow.visible = true;
+						torusShadow.visible = true;
+						sphereShadow.visible = true;
+						pyramidShadow.visible = true;
+					}
+					break;
+
+				case 76: /* L */
+					var tmp = lightLeft.visible;
+					if (tmp) {
+						lightLeft.visible = false;
+						arrowHelper2.visible = false;
+
+						// shadows
+						cubeShadow_left.visible = false;
+						cylinderShadow_left.visible = false;
+						torusShadow_left.visible = false;
+						sphereShadow_left.visible = false;
+						pyramidShadow_left.visible = false;
+					} else {
+						lightLeft.visible = true;
+						arrowHelper2.visible = true;
+
+						// shadows
+						cubeShadow_left.visible = true;
+						cylinderShadow_left.visible = true;
+						torusShadow_left.visible = true;
+						sphereShadow_left.visible = true;
+						pyramidShadow_left.visible = true;
+					}
+					break;
+
+				case 82: /* R */
+					var tmp = lightRight.visible;
+					if (tmp) {
+						lightRight.visible = false;
+						arrowHelper3.visible = false;
+
+						// shadows
+						cubeShadow_right.visible = false;
+						cylinderShadow_right.visible = false;
+						torusShadow_right.visible = false;
+						sphereShadow_right.visible = false;
+						pyramidShadow_right.visible = false;
+					} else {
+						lightRight.visible = true;
+						arrowHelper3.visible = true;
+
+						// shadows
+						cubeShadow_right.visible = true;
+						cylinderShadow_right.visible = true;
+						torusShadow_right.visible = true;
+						sphereShadow_right.visible = true;
+						pyramidShadow_right.visible = true;
+					}
+					break;
+
+				case 70: /* F */
+					console.log("F pressed");
+					let flatShading = THREE.FlatShading;
+					pyramid.material.flatShading = true;
+					pyramid.material.needsUpdate = true;
+
+					sphere.material.flatShading = true;
+					sphere.material.needsUpdate = true;
+
+					cube.material.flatShading = true;
+					cube.material.needsUpdate = true;
+
+					cylinder.material.flatShading = true;
+					cylinder.material.needsUpdate = true;
+
+					torus.material.flatShading = true;
+					torus.material.needsUpdate = true;
+
+					break;
+
+				case 83: /* S */
+					console.log("s pressed");
+					pyramid.material.flatShading = false;
+					pyramid.material.needsUpdate = true;
+
+					sphere.material.flatShading = false;
+					sphere.material.needsUpdate = true;
+
+					cube.material.flatShading = false;
+					cube.material.needsUpdate = true;
+
+					cylinder.material.flatShading = false;
+					cylinder.material.needsUpdate = true;
+
+					torus.material.flatShading = false;
+					torus.material.needsUpdate = true;
+
+					break;
+			}
+		}
+
+	</script>
+</body>
+
+</html>

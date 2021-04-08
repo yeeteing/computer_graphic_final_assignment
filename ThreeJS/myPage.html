@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>three.js webgl - geometries</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="../main.css">
+</head>
+
+<body>
+
+	<div>
+		<script type="module" >
+
+			import * as THREE from 'https://unpkg.com/three/build/three.module.js';
+
+			import Stats from 'https://unpkg.com/three/examples/jsm/libs/stats.module.js';
+			import { OrbitControls } from 'https://threejsfundamentals.org/threejs/resources/threejs/r125/examples/jsm/controls/OrbitControls.js';
+
+
+			let camera, scene, renderer, stats, container;
+			var move_offset = 5;
+			var start = Date.now();
+
+			let cameraPerspective, cameraOrtho, cameraRig, activeCamera, cameraPerspectiveHelper, cameraOrthoHelper;
+			const frustumSize = 900;
+			let SCREEN_WIDTH = window.innerWidth;
+			let SCREEN_HEIGHT = window.innerHeight;
+			let aspect = SCREEN_WIDTH / SCREEN_HEIGHT;
+			let firstMove = true;
+			let secondMove = true;
+			let thirdMove = true;
+			let fourthMove = true;
+			let fifthMove = true;
+
+			init();
+			animate();
+
+			function init() {
+
+				container = document.createElement('div');
+				document.body.appendChild(container);
+
+				scene = new THREE.Scene();
+
+				let object;
+
+				// Camera
+				camera = new THREE.PerspectiveCamera(50, aspect, 1, 8000);
+				camera.position.z = 1500;
+				camera.position.y = 300;
+
+				//perspective camera
+				cameraPerspective = new THREE.PerspectiveCamera(50, aspect, 100, 1500);
+				cameraPerspective.position.z = 1000;
+				cameraPerspective.position.y = 300;
+				cameraPerspectiveHelper = new THREE.CameraHelper(cameraPerspective);
+				scene.add(cameraPerspectiveHelper);
+
+				const ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+				const pointLight = new THREE.PointLight(0xffffff, 0.8);
+
+				// orthographic camera
+				cameraOrtho = new THREE.OrthographicCamera(frustumSize * aspect / - 2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / - 2, 15, 4000);
+				cameraOrtho.position.z = 1500;
+				cameraOrtho.position.y = 50;
+				// cameraOrthoHelper = new THREE.CameraHelper(cameraOrtho);
+				// scene.add(cameraOrthoHelper);
+				//
+
+				activeCamera = camera;
+
+				// counteract 
+				// cameraOrtho.rotation.y = Math.PI;
+				// cameraPerspective.rotation.y = Math.PI;
+				cameraRig = new THREE.Group();
+				cameraRig.add(ambientLight);
+				cameraRig.add(pointLight);
+
+
+				cameraRig.add(cameraPerspective);
+				cameraRig.add(cameraOrtho);
+
+				scene.add(cameraRig);
+
+
+
+				const map = new THREE.TextureLoader().load('../resources/colors.png');
+				map.wrapS = map.wrapT = THREE.RepeatWrapping;
+				map.anisotropy = 16;
+
+				const material = new THREE.MeshPhongMaterial({ map: map, side: THREE.DoubleSide });
+
+				//map 2
+				const map2 = new THREE.TextureLoader().load('../resources/tri_pattern.jpeg');
+				map2.wrapS = map2.wrapT = THREE.RepeatWrapping;
+				map2.anisotropy = 26;
+
+				const material2 = new THREE.MeshPhongMaterial({ map: map2, side: THREE.DoubleSide });
+
+				// a sphere
+
+				object = new THREE.Mesh(new THREE.SphereGeometry(75, 20, 10), material2);
+				object.position.set(- 300, 0, 200);
+				object.name = "first";
+				scene.add(object);
+
+				// a Tetrahedron
+				object = new THREE.Mesh(new THREE.TetrahedronGeometry(75, 0), material);
+				object.position.set(300, 0, 200);
+				object.name = "second";
+				scene.add(object);
+
+				// a box
+				object = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100, 4, 4, 4), material);
+				object.position.set(- 100, 0, 0);
+				object.name = "third";
+				scene.add(object);
+
+				// a cylinder
+				object = new THREE.Mesh(new THREE.CylinderGeometry(25, 75, 100, 40, 5), material);
+				object.position.set(- 300, 0, - 200);
+				object.name = "fourth";
+				scene.add(object);
+				// a torus
+				object = new THREE.Mesh(new THREE.TorusGeometry(50, 20, 20, 20), material);
+				object.position.set(100, 0, - 200);
+				object.name = "fifth";
+				scene.add(object);
+
+				// webgl renderer
+				renderer = new THREE.WebGLRenderer({ antialias: true });
+				renderer.setPixelRatio(window.devicePixelRatio);
+				renderer.setSize(window.innerWidth, window.innerHeight);
+				container.appendChild(renderer.domElement);
+
+				renderer.autoClear = false;
+
+				stats = new Stats();
+				container.appendChild(stats.dom);
+
+				//
+				const controls = new OrbitControls(cameraOrtho, container);
+				controls.target.set(0, 5, 0);
+				controls.update();
+
+				const controls2 = new OrbitControls(cameraPerspective, container);
+				controls2.target.set(0, 5, 0);
+				controls2.update();
+
+				// eventlistener for window resize and keyoard input
+				window.addEventListener('resize', onWindowResize);
+				document.addEventListener('keydown', onKeyDown);
+
+			}
+
+			//
+			function onKeyDown(event) {
+				var delta = 20;
+
+				switch (event.keyCode) {
+
+					case 49: /* 1 */
+						console.log("1 pressed");
+						firstMove = !firstMove;
+						break;
+
+					case 50: /* 2 */
+						console.log("2 pressed");
+						secondMove = !secondMove;
+						break;
+
+					case 51: /* 3 */
+						console.log("3 pressed");
+						thirdMove = !thirdMove;
+						break;
+
+					case 52: /* 4 */
+						console.log("4 pressed");
+						fourthMove = !fourthMove;
+						break;
+
+					case 53: /* 5 */
+						console.log("5 pressed");
+						fifthMove = !fifthMove;
+						break;
+
+					case 79: /*O*/
+						console.log("O pressed");
+						activeCamera = cameraOrtho;
+						cameraPerspectiveHelper.visible = false;
+						break;
+
+					case 80: /*P*/
+						console.log("p pressed")
+
+						activeCamera = cameraPerspective;
+						cameraPerspectiveHelper.visible = false;
+						break;
+					case 87: /* w */
+						console.log("w pressed");
+						activeCamera.zoom += 0.01
+						activeCamera.updateProjectionMatrix();
+		
+						break;
+
+					case 65: /* a */
+						console.log("a pressed");
+						// activeCamera.position.x = activeCamera.position.x - delta;
+						activeCamera.rotation.y += 0.1; // rotate to the left
+						break;
+
+					case 83: /* s */
+						console.log("s pressed");
+						activeCamera.zoom -= 0.01
+						activeCamera.updateProjectionMatrix();
+						
+						break;
+
+					case 68: /* d */
+						console.log("d pressed");
+						// activeCamera.position.x = activeCamera.position.x + delta;
+
+						activeCamera.rotation.y -= 0.1; // rotate to the right
+						break;
+
+				}
+
+			}
+			//
+
+			function onWindowResize() {
+				renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+
+				cameraPerspective.aspect = aspect;
+				cameraPerspective.updateProjectionMatrix();
+
+				cameraOrtho.left = -frustumSize * aspect / 2;
+				cameraOrtho.right = frustumSize * aspect / 2;
+				cameraOrtho.top = frustumSize / 2;
+				cameraOrtho.bottom = - frustumSize / 2;
+				cameraOrtho.updateProjectionMatrix();
+			}
+
+			//
+			function animate() {
+				requestAnimationFrame(animate);
+
+				render();
+				stats.update();
+
+			}
+
+			function render() {
+				const timer = Date.now() * 0.0001;
+
+				scene.traverse(function (object) {
+
+					if (object.isMesh === true) {
+						// object.translateX(1);
+						switch (object.name) {
+							case "first":
+								if (firstMove) {
+									object.rotation.x = (firstMove) ? timer * 5 : timer;
+								}
+								break;
+
+							case "second":
+								if (secondMove) { object.translateX(-1.5); }
+								break;
+
+							case "third":
+								if (thirdMove) {
+									let time_diff = parseInt((Date.now() - start) / 1000);
+									if (time_diff == 2) {
+										object.scale.set(0.5, 0.5, 0.5);
+									} else if (time_diff == 5) {
+										object.scale.set(1, 1, 1);
+										start = Date.now();
+									}
+								}
+								break;
+
+							case "fourth":
+								let time_diff2 = parseInt((Date.now() - start) / 1000);
+								if (fourthMove) {
+									if (time_diff2 == 2) {
+										object.scale.set(0.5, 1, 1);
+									} else if (time_diff2 == 5) {
+										object.scale.set(1, 1, 1);
+										start = Date.now();
+									}
+								}
+								break;
+
+							case "fifth":
+								if (fifthMove) {
+									if (object.position.x > 200) {
+										move_offset = -2;
+									}
+									if (object.position.x < -50) {
+										move_offset = 2;
+									}
+									object.translateX(move_offset);
+								}
+								break;
+						}
+					}
+
+				});
+
+				activeCamera.aspect = aspect;
+				activeCamera.updateProjectionMatrix();
+				cameraRig.lookAt(scene.position);
+				renderer.clear();
+
+				//
+				// cameraPerspectiveHelper.visible = true;
+
+				renderer.setViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+				renderer.render(scene, activeCamera);
+
+			}</script>
+	</div>
+
+	<div id="info">
+		<h3><b>Keyboard</b> Control: </br></h3>
+		<div style="color: rgb(134, 211, 230)">
+			<b>O</b> orthographic <b>P</b> perspective </br>
+		</div>
+
+		<div style="color: rgb(230, 230, 134)">
+			<b>1</b> Sphere(rotating x axis)
+			<b>2</b> Tetrahedron(translating)
+			<b>3</b> box(uniform scaling)
+			<b>4</b> cylinder(scaling x axis)
+			<b>5</b> torus(back & forth)
+		</div>
+
+		<div style="color: rgb(230, 134, 134)">
+			<b>w</b> move forward
+			<b>s</b> move backward
+			<b>a</b> left
+			<b>d</b> right
+		</div>
+
+	</div>
+</body>
+
+</html>

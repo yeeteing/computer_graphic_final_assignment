@@ -201,8 +201,9 @@
 			cubeShadow_right.material.color.setHex(0xff6600);
 
 			// BLUE CYLINDER and CYLINDER's SHADOW
+			const loaderCylinder = new THREE.TextureLoader();
 			const cylinderGeometry = new THREE.CylinderGeometry(0.3, 0.3, 2);
-			const cylinderMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(0,0,255)', emissive: 0x000020 });
+			const cylinderMaterial = new THREE.MeshPhongMaterial({ map: loaderCylinder.load('/resources/colors.png'), emissive: 0x000020 });
 			cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
 			cylinder.position.z = - 8.5;
 			scene.add(cylinder);

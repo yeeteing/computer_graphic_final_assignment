@@ -5,7 +5,7 @@
     [x] changing one light position and color using the keyboard.
     [ ] Varying materials, colors and use of textures is expected
     
-[ ] efficient, intuitive navigation must be presented
+[x] efficient, intuitive navigation must be presented
 
 [ ] Use of textures on the models.
 

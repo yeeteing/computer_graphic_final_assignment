@@ -9,7 +9,7 @@
 
 [ ] Use of textures on the models.
 
-[ ] elements are moving in a hierarchical relationship with other elements, in the form of platforms carrying other objects, a solar system, or a pair of objects rotating around each other, illustrating the use of cumulative transformations.
+[x] elements are moving in a hierarchical relationship with other elements, in the form of platforms carrying other objects, a solar system, or a pair of objects rotating around each other, illustrating the use of cumulative transformations.
 
 [ ] A “novel component”: A graphics technique that has not been part of the previous assignments.
 For instance, a method that might have been described as an “advanced topic”, or something

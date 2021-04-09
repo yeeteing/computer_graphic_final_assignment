@@ -19,13 +19,19 @@
 			<h3><b>left click to hit the objects </b></h3>
 		</div>
 		<div>
-			<b  style="color: rgb(230, 230, 134); ">Keyboard Control:</b> 
+			<b  style="color: rgb(155, 155, 155); ">Keyboard Control:</b> 
 			<div>L: Switch Light Bulb Off</div>
 			<div style="display:flex; flex-direction: row; justify-content:space-around; align-items: center;">
-				<div style="color: rgba(216, 42, 42, 0.863)">R: Switch Light Bulb To RED</div> <div style="color: rgb(103, 189, 77)">G: Switch Light Bulb To GREEN</div> <div style="color: rgb(0, 41, 129)">B: Switch Light Bulb To BLUE</div>
+				<div style="color: rgba(216, 42, 42, 0.863)">R: Switch Light Bulb To RED</div> 
+				<div style="color: rgb(103, 189, 77)">G: Switch Light Bulb To GREEN</div> 
+				<div style="color: rgb(0, 41, 129)">B: Switch Light Bulb To BLUE</div>
+				<div style="color: rgb(216, 216, 216)">O: Switch Light Bulb To WHITE</div>
 			</div>
 			<div style="display:flex; flex-direction: row; justify-content:space-around; align-items: center;">
 				<div>UP arrow: Move light Bulb UP</div><div>DOWN arrow: Move light Bulb DOWN</div><div>LEFT arrow: Move light Bulb LEFT</div><div>RIGHT arrow: Move light Bulb RIGHT</div>
+			</div>
+			<div style="color:rgb(221, 213, 105); display:flex; flex-direction: row; justify-content:space-around; align-items: center;">
+				<div>w: zoom in</div><div>a: look over left</div><div>d: look over right</div><div>s: zoom out</div>
 			</div>
 		</div>
 
@@ -62,6 +68,11 @@
 		let lightSphere, lightHolder;
 		let pyramid, pyramidShadow, pyramidShadow_left, pyramidShadow_right;
 		let sphere, sphereShadow, sphereShadow_left, sphereShadow_right;
+
+		let sun, sunShadow, sunShadow_left, sunShadow_right;
+		let earth, earthShadow, earthShadow_left, earthShadow_right;
+		let moon, moonShadow, moonShadow_left, moonShadow_right;
+
 		let cube, cubeShadow, cubeShadow_left, cubeShadow_right;
 		let cylinder, cylinderShadow, cylinderShadow_left, cylinderShadow_right;
 		let torus, torusShadow, torusShadow_left, torusShadow_right;
@@ -100,7 +111,7 @@
 			document.getElementById("container").appendChild(renderer.domElement);
 			window.addEventListener('resize', onWindowResize);
 
-			camera.position.set(0, 2.5, 10);
+			camera.position.set(0, 2.5, 20);
 			scene.add(camera);
 			onWindowResize();
 
@@ -174,7 +185,7 @@
 			const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
 			const cubeMaterial = new THREE.MeshLambertMaterial({ color: 'rgb(255,0,0)', emissive: 0x200000 });
 			cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-			cube.position.z = - 1;
+			cube.position.z = - 9;
 			scene.add(cube);
 
 			cubeShadow = new ShadowMesh(cube);
@@ -193,7 +204,7 @@
 			const cylinderGeometry = new THREE.CylinderGeometry(0.3, 0.3, 2);
 			const cylinderMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(0,0,255)', emissive: 0x000020 });
 			cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
-			cylinder.position.z = - 2.5;
+			cylinder.position.z = - 8.5;
 			scene.add(cylinder);
 
 			cylinderShadow = new ShadowMesh(cylinder);
@@ -212,7 +223,7 @@
 			const torusGeometry = new THREE.TorusGeometry(1, 0.2, 10, 16, TWO_PI);
 			const torusMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(255,0,255)', emissive: 0x200020 });
 			torus = new THREE.Mesh(torusGeometry, torusMaterial);
-			torus.position.z = - 6;
+			torus.position.z = - 16;
 			scene.add(torus);
 
 			torusShadow = new ShadowMesh(torus);
@@ -227,11 +238,73 @@
 			torusShadow_left.material.color.setHex(0xfff600);
 			torusShadow_right.material.color.setHex(0xff6600);
 
+			// SUN SPHERE and SPHERE'S SHADOW
+			const loaderSun = new THREE.TextureLoader();
+			const sunGeometry = new THREE.SphereGeometry(1, 20, 10);
+			const sunMaterial = new THREE.MeshPhongMaterial({map: loaderSun.load('/resources/sun.jpg'), emissive: 0x222222 });
+			sun = new THREE.Mesh(sunGeometry, sunMaterial);
+			sun.position.set(2, 5, 2);
+			scene.add(sun);
+
+			sunShadow = new ShadowMesh(sun);
+			scene.add(sunShadow);
+
+			sunShadow_left = new ShadowMesh(sun);
+			scene.add(sunShadow_left);
+
+			sunShadow_right = new ShadowMesh(sun);
+			scene.add(sunShadow_right);
+
+			sunShadow_left.material.color.setHex(0xfff600);
+			sunShadow_right.material.color.setHex(0xff6600);
+		
+			// EARTH SPHERE and SPHERE'S SHADOW
+			const loaderEarth = new THREE.TextureLoader();
+			const earthGeometry = new THREE.SphereGeometry(0.7, 20, 10);
+			const earthMaterial = new THREE.MeshPhongMaterial({ map: loaderSun.load('/resources/map.jpg'), emissive: 0x222222 });
+			earth = new THREE.Mesh(earthGeometry, earthMaterial);
+			earth.position.set(0, 2, 5);
+			scene.add(earth);
+
+			earthShadow = new ShadowMesh(earth);
+			scene.add(earthShadow);
+
+			earthShadow_left = new ShadowMesh(earth);
+			scene.add(earthShadow_left);
+
+			earthShadow_right = new ShadowMesh(earth);
+			scene.add(earthShadow_right);
+
+			earthShadow_left.material.color.setHex(0xfff600);
+			earthShadow_right.material.color.setHex(0xff6600);
+			sun.add(earth)
+
+			// MOON SPHERE and SPHERE'S SHADOW
+			const loaderMoon = new THREE.TextureLoader();
+			const moonGeometry = new THREE.SphereGeometry(0.7, 20, 10);
+			const moonGMaterial = new THREE.MeshPhongMaterial({ map: loaderSun.load('/resources/moon.jpg'), emissive: 0x222222 });
+			moon = new THREE.Mesh(moonGeometry, moonGMaterial);
+			moon.position.set(0, 0.5, 1.5);
+			scene.add(moon);
+
+			moonShadow = new ShadowMesh(moon);
+			scene.add(moonShadow);
+
+			moonShadow_left = new ShadowMesh(moon);
+			scene.add(moonShadow_left);
+
+			moonShadow_right = new ShadowMesh(moon);
+			scene.add(moonShadow_right);
+
+			moonShadow_left.material.color.setHex(0xfff600);
+			moonShadow_right.material.color.setHex(0xff6600);
+			earth.add(moon)
+
 			// WHITE SPHERE and SPHERE'S SHADOW
 			const sphereGeometry = new THREE.SphereGeometry(0.5, 20, 10);
 			const sphereMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(255,255,255)', emissive: 0x222222 });
 			sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-			sphere.position.set(4, 0.5, 2);
+			sphere.position.set(14, 0.5, 12);
 			scene.add(sphere);
 
 			sphereShadow = new ShadowMesh(sphere);
@@ -250,7 +323,7 @@
 			const pyramidGeometry = new THREE.CylinderGeometry(0, 0.5, 2, 4);
 			const pyramidMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(255,255,0)', emissive: 0x440000, shininess: 0 });
 			pyramid = new THREE.Mesh(pyramidGeometry, pyramidMaterial);
-			pyramid.position.set(- 4, 1, 2);
+			pyramid.position.set(- 9, 1, 2);
 			scene.add(pyramid);
 
 			pyramidShadow = new ShadowMesh(pyramid);
@@ -328,6 +401,9 @@
 			sphere.rotation.x -= 1.0 * frameTime;
 			sphere.rotation.y -= 1.0 * frameTime;
 
+			sun.rotation.y +=1.0*frameTime;
+			earth.rotation.y +=1.0*frameTime;
+
 			horizontalAngle += 0.5 * frameTime;
 			if (horizontalAngle > TWO_PI)
 				horizontalAngle -= TWO_PI;
@@ -349,21 +425,23 @@
 			torusShadow.update(groundPlane, lightPosition4D);
 			sphereShadow.update(groundPlane, lightPosition4D);
 			pyramidShadow.update(groundPlane, lightPosition4D);
+			sunShadow.update(groundPlane, lightPosition4D);
 
 			cubeShadow_left.update(groundPlane, lightPosition4D_left);
 			cylinderShadow_left.update(groundPlane, lightPosition4D_left);
 			torusShadow_left.update(groundPlane, lightPosition4D_left);
 			sphereShadow_left.update(groundPlane, lightPosition4D_left);
 			pyramidShadow_left.update(groundPlane, lightPosition4D_left);
+			sunShadow_left.update(groundPlane, lightPosition4D_left);
 
 			cubeShadow_right.update(groundPlane, lightPosition4D_right);
 			cylinderShadow_right.update(groundPlane, lightPosition4D_right);
 			torusShadow_right.update(groundPlane, lightPosition4D_right);
 			sphereShadow_right.update(groundPlane, lightPosition4D_right);
 			pyramidShadow_right.update(groundPlane, lightPosition4D_right);
+			sunShadow_right.update(groundPlane, lightPosition4D_right);
 
 			renderer.render(scene, camera);
-
 		}
 
 		function onWindowResize() {
@@ -392,20 +470,24 @@
 						torusShadow.visible = sunLight.visible;
 						sphereShadow.visible = sunLight.visible;
 						pyramidShadow.visible = sunLight.visible;
-					
 					break;
+
 				case 82: /* R */
 					sunLight.color.setRGB(1, 0, 0)
 					break;
+
 				case 71: /* G */
 					sunLight.color.setRGB(0, 1, 0)
 					break;
+
 				case 66: /* B */
 					sunLight.color.setRGB(0, 0, 1)
 					break;
-				case 87: /* W */
+
+				case 79: /* o */
 					sunLight.color.setRGB(1, 1, 1)
 					break;
+
 				case 38: /* up */	
 					sunLightY +=1
 					sunLight.position.set(sunLightX, sunLightY, sunLightZ);
@@ -433,6 +515,7 @@
 					lightPosition4D.z = sunLight.position.z;
 					lightPosition4D.w = 0.9; // more of a point Light value
 					break;
+
 				case 39: /* right */
 					sunLightX += 1
 					sunLight.position.set(sunLightX, sunLightY, sunLightZ);
@@ -446,6 +529,7 @@
 					lightPosition4D.z = sunLight.position.z;
 					lightPosition4D.w = 0.9; // more of a point Light value
 					break;
+
 				case 40: /* down */
 					sunLightY -=1
 					sunLight.position.set(sunLightX, sunLightY, sunLightZ);
@@ -458,6 +542,30 @@
 					lightPosition4D.y = sunLight.position.y;
 					lightPosition4D.z = sunLight.position.z;
 					lightPosition4D.w = 0.9; // more of a point Light value
+					break;
+
+				case 87: /* w */
+					console.log('x')
+					camera.zoom += 0.01
+					console.log(camera.zoom)
+					camera.updateProjectionMatrix();
+	
+					break;
+				case 65: /* a */
+					// activeCamera.position.x = activeCamera.position.x - delta;
+					camera.rotation.y += 0.1; // rotate to the left
+					break;
+
+				case 83: /* s */
+					camera.zoom -= 0.01
+					console.log(camera.zoom)
+					camera.updateProjectionMatrix();
+					
+					break;
+				case 68: /* d */
+					// activeCamera.position.x = activeCamera.position.x + delta;
+					camera.rotation.y -= 0.1; // rotate to the right
+					break;
 			}
 		}
 

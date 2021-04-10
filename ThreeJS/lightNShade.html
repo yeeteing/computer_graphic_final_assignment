@@ -108,7 +108,7 @@
 		let sunLightX, sunLightY, sunLightZ;
 
 		// weapons
-		const GRAVITY = 30;
+		const GRAVITY = 13.8;
 		const NUM_SPHERES = 20;
 		const SPHERE_RADIUS = 0.2;
 		var mySpheresGeometry, mySpheresMaterial;
@@ -197,17 +197,17 @@
 			// lightSphere.castShadow = true;
 
 			const lightHolderGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.13);
-			const lightHolderMaterial = new THREE.MeshBasicMaterial({ color: 'rgb(75,75,75)' });
+			const lightHolderMaterial = new THREE.MeshBasicMaterial({ color: 'rgb(255,75,75)' });
 			lightHolder = new THREE.Mesh(lightHolderGeometry, lightHolderMaterial);
 			scene.add(lightHolder);
 			lightHolder.visible = true;
 			lightHolder.position.copy(lightSphere.position);
 
 			// GROUND
-			const groundGeometry = new THREE.BoxGeometry(30, 0.01, 40);
+			const groundGeometry = new THREE.BoxGeometry(40, 1, 40, 1, 1, 1);
 			const groundMaterial = new THREE.MeshLambertMaterial({ color: 'rgb(0,130,0)' });
 			groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-			groundMesh.position.y = 0.0; //this value must be slightly lower than the planeConstant (0.01) parameter above
+			groundMesh.position.y = -0.6; //this value must be slightly lower than the planeConstant (0.01) parameter above
 			scene.add(groundMesh);
 
 			// ---------------------------------------- world octree ----------------------------------------
@@ -400,7 +400,7 @@
 
 				scene.add(sphere);
 
-				spheres.push({ mesh: sphere, collider: new THREE.Sphere(new THREE.Vector3(0, - 10, 0), SPHERE_RADIUS), velocity: new THREE.Vector3() });
+				spheres.push({ mesh: sphere, collider: new THREE.Sphere(new THREE.Vector3(0, - 100, 0), SPHERE_RADIUS), velocity: new THREE.Vector3() });
 
 			}
 
@@ -449,6 +449,41 @@
 			sphereIdx = (sphereIdx + 1) % spheres.length;
 		}
 
+		// collision for weapons
+		function spheresCollisions() {
+
+			for (let i = 0; i < spheres.length; i++) {
+
+				const s1 = spheres[i];
+
+				for (let j = i + 1; j < spheres.length; j++) {
+
+					const s2 = spheres[j];
+
+					const d2 = s1.collider.center.distanceToSquared(s2.collider.center);
+					const r = s1.collider.radius + s2.collider.radius;
+					const r2 = r * r;
+
+					if (d2 < r2) {
+
+						const normal = s1.collider.clone().center.sub(s2.collider.center).normalize();
+						const v1 = normal.clone().multiplyScalar(normal.dot(s1.velocity));
+						const v2 = normal.clone().multiplyScalar(normal.dot(s2.velocity));
+						s1.velocity.add(v2).sub(v1);
+						s2.velocity.add(v1).sub(v2);
+
+						const d = (r - Math.sqrt(d2)) / 2;
+
+						s1.collider.center.addScaledVector(normal, d);
+						s2.collider.center.addScaledVector(normal, - d);
+
+					}
+
+				}
+
+			}
+
+		}
 		// weapons
 		function updateSpheres(deltaTime) {
 
@@ -460,7 +495,7 @@
 
 				if (result) {
 
-					sphere.velocity.addScaledVector(result.normal, - result.normal.dot(sphere.velocity) * 1.5);
+					sphere.velocity.addScaledVector(result.normal, - result.normal.dot(sphere.velocity) * 1.0);
 					sphere.collider.center.add(result.normal.multiplyScalar(result.depth));
 
 				} else {
@@ -523,42 +558,6 @@
 			playerCollitions();
 
 			camera.position.copy(playerCollider.end);
-
-		}
-
-		// collision for weapons
-		function spheresCollisions() {
-
-			for (let i = 0; i < spheres.length; i++) {
-
-				const s1 = spheres[i];
-
-				for (let j = i + 1; j < spheres.length; j++) {
-
-					const s2 = spheres[j];
-
-					const d2 = s1.collider.center.distanceToSquared(s2.collider.center);
-					const r = s1.collider.radius + s2.collider.radius;
-					const r2 = r * r;
-
-					if (d2 < r2) {
-
-						const normal = s1.collider.clone().center.sub(s2.collider.center).normalize();
-						const v1 = normal.clone().multiplyScalar(normal.dot(s1.velocity));
-						const v2 = normal.clone().multiplyScalar(normal.dot(s2.velocity));
-						s1.velocity.add(v2).sub(v1);
-						s2.velocity.add(v1).sub(v2);
-
-						const d = (r - Math.sqrt(d2)) / 2;
-
-						s1.collider.center.addScaledVector(normal, d);
-						s2.collider.center.addScaledVector(normal, - d);
-
-					}
-
-				}
-
-			}
 
 		}
 
@@ -627,7 +626,7 @@
 
 		function animate() {
 
-			
+
 			requestAnimationFrame(animate);
 
 			// ----- weapond and player update -----

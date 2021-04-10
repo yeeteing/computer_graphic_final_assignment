@@ -14,24 +14,32 @@
 			<b>Scores</b>
 			<label><span id="scores" readonly></span></label>
 		</div>
-		
+
 		<div style="color: rgb(134, 211, 230)">
 			<h3><b>left click to hit the objects </b></h3>
 		</div>
 		<div>
-			<b  style="color: rgb(155, 155, 155); ">Keyboard Control:</b> 
+			<b style="color: rgb(155, 155, 155); ">Keyboard Control:</b>
 			<div>L: Switch Light Bulb Off</div>
 			<div style="display:flex; flex-direction: row; justify-content:space-around; align-items: center;">
-				<div style="color: rgba(216, 42, 42, 0.863)">R: Switch Light Bulb To RED</div> 
-				<div style="color: rgb(103, 189, 77)">G: Switch Light Bulb To GREEN</div> 
+				<div style="color: rgba(216, 42, 42, 0.863)">R: Switch Light Bulb To RED</div>
+				<div style="color: rgb(103, 189, 77)">G: Switch Light Bulb To GREEN</div>
 				<div style="color: rgb(0, 41, 129)">B: Switch Light Bulb To BLUE</div>
 				<div style="color: rgb(216, 216, 216)">O: Switch Light Bulb To WHITE</div>
 			</div>
 			<div style="display:flex; flex-direction: row; justify-content:space-around; align-items: center;">
-				<div>UP arrow: Move light Bulb UP</div><div>DOWN arrow: Move light Bulb DOWN</div><div>LEFT arrow: Move light Bulb LEFT</div><div>RIGHT arrow: Move light Bulb RIGHT</div>
+				<div>UP arrow: Move light Bulb UP</div>
+				<div>DOWN arrow: Move light Bulb DOWN</div>
+				<div>LEFT arrow: Move light Bulb LEFT</div>
+				<div>RIGHT arrow: Move light Bulb RIGHT</div>
 			</div>
-			<div style="color:rgb(221, 213, 105); display:flex; flex-direction: row; justify-content:space-around; align-items: center;">
-				<div>w: zoom in</div><div>a: look over left</div><div>d: look over right</div><div>s: zoom out</div>
+			<div
+				style="color:rgb(221, 213, 105); display:flex; flex-direction: row; justify-content:space-around; align-items: center;">
+				<div>w: go forward</div>
+				<div>a: turn left</div>
+				<div>d: turn right</div>
+				<div>s: go backward</div>
+				<div>space: jump</div>
 			</div>
 		</div>
 
@@ -46,13 +54,17 @@
 
 		import { ShadowMesh } from 'https://unpkg.com/three/examples/jsm/objects/ShadowMesh.js';
 
-		import { OrbitControls } from 'https://threejsfundamentals.org/threejs/resources/threejs/r125/examples/jsm/controls/OrbitControls.js';
+		// import { OrbitControls } from 'https://threejsfundamentals.org/threejs/resources/threejs/r125/examples/jsm/controls/OrbitControls.js';
+
+		import { Octree } from '../resources/Octree.js';
+		import { Capsule } from '../resources/Capsule.js';
 
 		let SCREEN_WIDTH = window.innerWidth;
 		let SCREEN_HEIGHT = window.innerHeight;
 
 		const scene = new THREE.Scene();
-		const camera = new THREE.PerspectiveCamera(55, SCREEN_WIDTH / SCREEN_HEIGHT, 1, 3000);
+		const camera = new THREE.PerspectiveCamera(75, SCREEN_WIDTH / SCREEN_HEIGHT, 0.1, 1000);
+		camera.rotation.order = 'YXZ';
 
 		const clock = new THREE.Clock();
 		const renderer = new THREE.WebGLRenderer();
@@ -89,20 +101,37 @@
 
 		const mouseCoords = new THREE.Vector2();
 		const raycaster = new THREE.Raycaster();
-		const ballMaterial = new THREE.MeshPhongMaterial( { color: 0x202020 } );
+		const ballMaterial = new THREE.MeshPhongMaterial({ color: 0x202020 });
 
 		let controls;
 
-		let sunLightX, sunLightY, sunLightZ
+		let sunLightX, sunLightY, sunLightZ;
+
+		// weapons
+		const GRAVITY = 30;
+		const NUM_SPHERES = 20;
+		const SPHERE_RADIUS = 0.2;
+		var mySpheresGeometry, mySpheresMaterial;
+		var spheres = [];
+		let sphereIdx = 0;
+
+		//player
+		var worldOctree;
+		var playerCollider;
+		var playerVelocity;
+		var playerDirection;
+		let playerOnFloor;
+		var keyStates = {};
+
 
 		init();
 		animate();
 
 		function init() {
 			const container = document.querySelector('#container');
-			controls = new OrbitControls(camera, container);
-			controls.target.set(0, 0, 0);
-			controls.update();
+			// controls = new OrbitControls(camera, container);
+			// controls.target.set(0, 0, 0);
+			// controls.update();
 
 			scene.background = new THREE.Color(0x0096ff);
 
@@ -181,6 +210,27 @@
 			groundMesh.position.y = 0.0; //this value must be slightly lower than the planeConstant (0.01) parameter above
 			scene.add(groundMesh);
 
+			// ---------------------------------------- world octree ----------------------------------------
+			worldOctree = new Octree();
+			worldOctree.fromGraphNode(groundMesh);
+
+			groundMesh.traverse(child => {
+
+				if (child.isMesh) {
+
+					child.castShadow = true;
+					child.receiveShadow = true;
+
+					if (child.material.map) {
+
+						child.material.map.anisotropy = 8;
+
+					}
+
+				}
+
+			});
+
 			// RED CUBE and CUBE's SHADOW
 			const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
 			const cubeMaterial = new THREE.MeshLambertMaterial({ color: 'rgb(255,0,0)', emissive: 0x200000 });
@@ -242,7 +292,7 @@
 			// SUN SPHERE and SPHERE'S SHADOW
 			const loaderSun = new THREE.TextureLoader();
 			const sunGeometry = new THREE.SphereGeometry(1, 20, 10);
-			const sunMaterial = new THREE.MeshPhongMaterial({map: loaderSun.load('/resources/sun.jpg'), emissive: 0x222222 });
+			const sunMaterial = new THREE.MeshPhongMaterial({ map: loaderSun.load('/resources/sun.jpg'), emissive: 0x222222 });
 			sun = new THREE.Mesh(sunGeometry, sunMaterial);
 			sun.position.set(2, 5, 2);
 			scene.add(sun);
@@ -258,7 +308,7 @@
 
 			sunShadow_left.material.color.setHex(0xfff600);
 			sunShadow_right.material.color.setHex(0xff6600);
-		
+
 			// EARTH SPHERE and SPHERE'S SHADOW
 			const loaderEarth = new THREE.TextureLoader();
 			const earthGeometry = new THREE.SphereGeometry(0.7, 20, 10);
@@ -339,53 +389,255 @@
 			pyramidShadow_left.material.color.setHex(0xfff600);
 			pyramidShadow_right.material.color.setHex(0xff6600);
 
-			document.addEventListener('keydown', onKeyDown);
+			//weapons
+			mySpheresGeometry = new THREE.SphereGeometry(SPHERE_RADIUS, 32, 32);
+			mySpheresMaterial = new THREE.MeshStandardMaterial({ color: 'rgb(255,0,0)', roughness: 0.8, metalness: 0.5 });
 
+			for (let i = 0; i < NUM_SPHERES; i++) {
+				const sphere = new THREE.Mesh(mySpheresGeometry, mySpheresMaterial);
+				sphere.castShadow = true;
+				sphere.receiveShadow = true;
+
+				scene.add(sphere);
+
+				spheres.push({ mesh: sphere, collider: new THREE.Sphere(new THREE.Vector3(0, - 10, 0), SPHERE_RADIUS), velocity: new THREE.Vector3() });
+
+			}
+
+			//player
+			// worldOctree = new Octree();
+
+			playerCollider = new Capsule(new THREE.Vector3(0, 0.35, 0), new THREE.Vector3(0, 1, 0), 0.35);
+
+			playerVelocity = new THREE.Vector3();
+			playerDirection = new THREE.Vector3();
+
+			playerOnFloor = false;
+
+			//listeners
+			document.addEventListener('keydown', onKeyDown);
+			document.addEventListener('keyup', onKeyUp);
 			document.getElementById("scores").innerHTML = "0";
 			document.addEventListener('mousemove', onMouseMove);
-			
-			document.addEventListener( 'pointerdown', onMouseDown)
+			document.addEventListener('pointerdown', onMouseDown)
+
+			document.addEventListener('mousedown', () => {
+
+				document.body.requestPointerLock();
+
+			});
 		}
 
 		function onMouseMove(e) {
-			// console.log("cqmera: ", controls.object.position);
+			if (document.pointerLockElement === document.body) {
+
+				camera.rotation.y -= e.movementX / 500;
+				camera.rotation.x -= e.movementY / 500;
+
+			}
 
 		}
 
-		function onMouseDown(e){
+		function onMouseDown(e) {
 			console.log('c')
-			mouseCoords.set(
-					( event.clientX / window.innerWidth ) * 2 - 1,
-					- ( event.clientY / window.innerHeight ) * 2 + 1
-				);
 
-				raycaster.setFromCamera( mouseCoords, camera );
+			// weapons
+			const sphere = spheres[sphereIdx];
+			camera.getWorldDirection(playerDirection);
+			sphere.collider.center.copy(playerCollider.end);
+			sphere.velocity.copy(playerDirection).multiplyScalar(30);
+			sphereIdx = (sphereIdx + 1) % spheres.length;
+		}
 
-				// Creates a ball and throws it
-				const ballMass = 35;
-				const ballRadius = 0.4;
+		// weapons
+		function updateSpheres(deltaTime) {
 
-				const ball = new THREE.Mesh( new THREE.SphereGeometry( ballRadius, 14, 10 ), ballMaterial );
-				ball.castShadow = true;
-				ball.receiveShadow = true;
-			//	const ballShape = new Ammo.btSphereShape( ballRadius );
-				ballShape.setMargin( margin );
-				pos.copy( raycaster.ray.direction );
-				pos.add( raycaster.ray.origin );
-				quat.set( 0, 0, 0, 1 );
-				const ballBody = createRigidBody( ball, ballShape, ballMass, pos, quat );
+			spheres.forEach(sphere => {
 
-				pos.copy( raycaster.ray.direction );
-				pos.multiplyScalar( 24 );
-			//	ballBody.setLinearVelocity( new Ammo.btVector3( pos.x, pos.y, pos.z ) );
+				sphere.collider.center.addScaledVector(sphere.velocity, deltaTime);
+
+				const result = worldOctree.sphereIntersect(sphere.collider);
+
+				if (result) {
+
+					sphere.velocity.addScaledVector(result.normal, - result.normal.dot(sphere.velocity) * 1.5);
+					sphere.collider.center.add(result.normal.multiplyScalar(result.depth));
+
+				} else {
+
+					sphere.velocity.y -= GRAVITY * deltaTime;
+
+				}
+
+				const damping = Math.exp(- 1.5 * deltaTime) - 1;
+				sphere.velocity.addScaledVector(sphere.velocity, damping);
+
+				spheresCollisions();
+
+				sphere.mesh.position.copy(sphere.collider.center);
+
+			});
+
+		}
+
+		// player
+		function playerCollitions() {
+
+			const result = worldOctree.capsuleIntersect(playerCollider);
+
+			playerOnFloor = false;
+
+			if (result) {
+
+				playerOnFloor = result.normal.y > 0;
+
+				if (!playerOnFloor) {
+
+					playerVelocity.addScaledVector(result.normal, - result.normal.dot(playerVelocity));
+
+				}
+
+				playerCollider.translate(result.normal.multiplyScalar(result.depth));
+
+			}
+
+		}
+
+		// player updating
+		function updatePlayer(deltaTime) {
+
+			if (playerOnFloor) {
+
+				const damping = Math.exp(- 3 * deltaTime) - 1;
+				playerVelocity.addScaledVector(playerVelocity, damping);
+
+			} else {
+
+				playerVelocity.y -= GRAVITY * deltaTime;
+
+			}
+
+			const deltaPosition = playerVelocity.clone().multiplyScalar(deltaTime);
+			playerCollider.translate(deltaPosition);
+
+			playerCollitions();
+
+			camera.position.copy(playerCollider.end);
+
+		}
+
+		// collision for weapons
+		function spheresCollisions() {
+
+			for (let i = 0; i < spheres.length; i++) {
+
+				const s1 = spheres[i];
+
+				for (let j = i + 1; j < spheres.length; j++) {
+
+					const s2 = spheres[j];
+
+					const d2 = s1.collider.center.distanceToSquared(s2.collider.center);
+					const r = s1.collider.radius + s2.collider.radius;
+					const r2 = r * r;
+
+					if (d2 < r2) {
+
+						const normal = s1.collider.clone().center.sub(s2.collider.center).normalize();
+						const v1 = normal.clone().multiplyScalar(normal.dot(s1.velocity));
+						const v2 = normal.clone().multiplyScalar(normal.dot(s2.velocity));
+						s1.velocity.add(v2).sub(v1);
+						s2.velocity.add(v1).sub(v2);
+
+						const d = (r - Math.sqrt(d2)) / 2;
+
+						s1.collider.center.addScaledVector(normal, d);
+						s2.collider.center.addScaledVector(normal, - d);
+
+					}
+
+				}
+
+			}
+
+		}
+
+		// calc vector to forward
+		function getForwardVector() {
+
+			camera.getWorldDirection(playerDirection);
+			playerDirection.y = 0;
+			playerDirection.normalize();
+
+			return playerDirection;
+
+		}
+
+		// calc vector to sidewalk
+		function getSideVector() {
+
+			camera.getWorldDirection(playerDirection);
+			playerDirection.y = 0;
+			playerDirection.normalize();
+			playerDirection.cross(camera.up);
+
+			return playerDirection;
+
+		}
+
+		function controller(deltaTime) {
+
+			const speed = 25;
+
+			if (playerOnFloor) {
+
+				if (keyStates['KeyW']) {
+
+					playerVelocity.add(getForwardVector().multiplyScalar(speed * deltaTime));
+
+				}
+
+				if (keyStates['KeyS']) {
+
+					playerVelocity.add(getForwardVector().multiplyScalar(- speed * deltaTime));
+
+				}
+
+				if (keyStates['KeyA']) {
+
+					playerVelocity.add(getSideVector().multiplyScalar(- speed * deltaTime));
+
+				}
+
+				if (keyStates['KeyD']) {
+
+					playerVelocity.add(getSideVector().multiplyScalar(speed * deltaTime));
+
+				}
+
+				if (keyStates['Space']) {
+
+					playerVelocity.y = 15;
+
+				}
+
+			}
 
 		}
 
 		function animate() {
 
+			
 			requestAnimationFrame(animate);
 
-			frameTime = clock.getDelta();
+			// ----- weapond and player update -----
+			const deltaTime = Math.min(0.1, clock.getDelta());
+			controller(deltaTime);
+			updatePlayer(deltaTime);
+			updateSpheres(deltaTime);
+			// ----- weapond and player done update -----
+
+			frameTime = deltaTime;
 
 			cube.rotation.x += 1.0 * frameTime;
 			cube.rotation.y += 1.0 * frameTime;
@@ -402,8 +654,8 @@
 			sphere.rotation.x -= 1.0 * frameTime;
 			sphere.rotation.y -= 1.0 * frameTime;
 
-			sun.rotation.y +=1.0*frameTime;
-			earth.rotation.y +=1.0*frameTime;
+			sun.rotation.y += 1.0 * frameTime;
+			earth.rotation.y += 1.0 * frameTime;
 
 			horizontalAngle += 0.5 * frameTime;
 			if (horizontalAngle > TWO_PI)
@@ -457,20 +709,26 @@
 
 		}
 
+		function onKeyUp(event) {
+			keyStates[event.code] = false;
+		}
+
 		function onKeyDown(event) {
 
 			var delta = 20;
 			console.log(event.keyCode)
 
-			switch (event.keyCode) {				
+			keyStates[event.code] = true;
+
+			switch (event.keyCode) {
 				case 76: /* L */
-						sunLight.visible = !sunLight.visible;
-						// shadows
-						cubeShadow.visible = sunLight.visible;
-						cylinderShadow.visible = sunLight.visible;
-						torusShadow.visible = sunLight.visible;
-						sphereShadow.visible = sunLight.visible;
-						pyramidShadow.visible = sunLight.visible;
+					sunLight.visible = !sunLight.visible;
+					// shadows
+					cubeShadow.visible = sunLight.visible;
+					cylinderShadow.visible = sunLight.visible;
+					torusShadow.visible = sunLight.visible;
+					sphereShadow.visible = sunLight.visible;
+					pyramidShadow.visible = sunLight.visible;
 					break;
 
 				case 82: /* R */
@@ -489,8 +747,8 @@
 					sunLight.color.setRGB(1, 1, 1)
 					break;
 
-				case 38: /* up */	
-					sunLightY +=1
+				case 38: /* up */
+					sunLightY += 1
 					sunLight.position.set(sunLightX, sunLightY, sunLightZ);
 					sunLight.lookAt(scene.position);
 
@@ -502,7 +760,7 @@
 					lightPosition4D.z = sunLight.position.z;
 					lightPosition4D.w = 0.9; // more of a point Light value
 					break;
-					
+
 				case 37: /* left */
 					sunLightX -= 1
 					sunLight.position.set(sunLightX, sunLightY, sunLightZ);
@@ -532,7 +790,7 @@
 					break;
 
 				case 40: /* down */
-					sunLightY -=1
+					sunLightY -= 1
 					sunLight.position.set(sunLightX, sunLightY, sunLightZ);
 					sunLight.lookAt(scene.position);
 
@@ -545,28 +803,28 @@
 					lightPosition4D.w = 0.9; // more of a point Light value
 					break;
 
-				case 87: /* w */
-					console.log('x')
-					camera.zoom += 0.01
-					console.log(camera.zoom)
-					camera.updateProjectionMatrix();
-	
-					break;
-				case 65: /* a */
-					// activeCamera.position.x = activeCamera.position.x - delta;
-					camera.rotation.y += 0.1; // rotate to the left
-					break;
+				// case 87: /* w */
+				// 	console.log('x')
+				// 	camera.zoom += 0.01
+				// 	console.log(camera.zoom)
+				// 	camera.updateProjectionMatrix();
 
-				case 83: /* s */
-					camera.zoom -= 0.01
-					console.log(camera.zoom)
-					camera.updateProjectionMatrix();
-					
-					break;
-				case 68: /* d */
-					// activeCamera.position.x = activeCamera.position.x + delta;
-					camera.rotation.y -= 0.1; // rotate to the right
-					break;
+				// 	break;
+				// case 65: /* a */
+				// 	// activeCamera.position.x = activeCamera.position.x - delta;
+				// 	camera.rotation.y += 0.1; // rotate to the left
+				// 	break;
+
+				// case 83: /* s */
+				// 	camera.zoom -= 0.01
+				// 	console.log(camera.zoom)
+				// 	camera.updateProjectionMatrix();
+
+				// 	break;
+				// case 68: /* d */
+				// 	// activeCamera.position.x = activeCamera.position.x + delta;
+				// 	camera.rotation.y -= 0.1; // rotate to the right
+				// 	break;
 			}
 		}
 

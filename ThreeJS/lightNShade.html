@@ -123,7 +123,6 @@
 		let playerOnFloor;
 		var keyStates = {};
 
-
 		init();
 		animate();
 
@@ -419,7 +418,7 @@
 			document.addEventListener('keyup', onKeyUp);
 			document.getElementById("scores").innerHTML = "0";
 			document.addEventListener('mousemove', onMouseMove);
-			document.addEventListener('pointerdown', onMouseDown)
+			document.addEventListener('pointerdown', onMouseDown);
 
 			document.addEventListener('mousedown', () => {
 
@@ -678,6 +677,8 @@
 			sphereShadow.update(groundPlane, lightPosition4D);
 			pyramidShadow.update(groundPlane, lightPosition4D);
 			sunShadow.update(groundPlane, lightPosition4D);
+			moonShadow.update(groundPlane, lightPosition4D);
+			earthShadow.update(groundPlane, lightPosition4D);
 
 			cubeShadow_left.update(groundPlane, lightPosition4D_left);
 			cylinderShadow_left.update(groundPlane, lightPosition4D_left);
@@ -685,6 +686,8 @@
 			sphereShadow_left.update(groundPlane, lightPosition4D_left);
 			pyramidShadow_left.update(groundPlane, lightPosition4D_left);
 			sunShadow_left.update(groundPlane, lightPosition4D_left);
+			moonShadow_left.update(groundPlane, lightPosition4D_left);
+			earthShadow_left.update(groundPlane, lightPosition4D_left);
 
 			cubeShadow_right.update(groundPlane, lightPosition4D_right);
 			cylinderShadow_right.update(groundPlane, lightPosition4D_right);
@@ -692,6 +695,8 @@
 			sphereShadow_right.update(groundPlane, lightPosition4D_right);
 			pyramidShadow_right.update(groundPlane, lightPosition4D_right);
 			sunShadow_right.update(groundPlane, lightPosition4D_right);
+			moonShadow_right.update(groundPlane, lightPosition4D_right);
+			earthShadow_right.update(groundPlane, lightPosition4D_right);
 
 			renderer.render(scene, camera);
 		}

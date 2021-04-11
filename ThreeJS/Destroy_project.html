@@ -14,30 +14,73 @@
 
 <body>
 
-	<div id="info">Physics threejs demo with convex objects breaking in real time<br />Press mouse to throw balls and
-		move the camera.</div>
+	<div id="info">
+		<div style="border:0; color:#f6931f; font-weight:bold; font-size:large;">
+			<b>Scores</b>
+			<label><span id="scores" readonly></span></label><br>
+			<b>Shoots</b>
+			<label><span id="shoots" readonly></span></label>
+		</div>
+
+		<div style="color: rgb(29, 55, 61)">
+			<h3><b> Scores (left click to hit the objects) </b></h3>
+			<b>cylinder, sun: 10 || </b>
+			<b>cube: 7 || </b>
+			<b>torus, mountain: 5 || </b>
+			<b>sphere, bridge: 3 || </b>
+			<b>stone, tower: 1 </b>
+		</div>
+		<div>
+			<b style="color: rgb(155, 155, 155); ">Keyboard Control:</b>
+			<div>L: Switch Light Bulb Off</div>
+			<div style="display:flex; flex-direction: row; justify-content:space-around; align-items: center;">
+				<div style="color: rgba(216, 42, 42, 0.863)">R: Switch Light Bulb To RED</div>
+				<div style="color: rgb(103, 189, 77)">G: Switch Light Bulb To GREEN</div>
+				<div style="color: rgb(0, 41, 129)">B: Switch Light Bulb To BLUE</div>
+				<div style="color: rgb(216, 216, 216)">O: Switch Light Bulb To WHITE</div>
+			</div>
+			<div style="display:flex; flex-direction: row; justify-content:space-around; align-items: center;">
+				<div>UP arrow: Move light Bulb UP</div>
+				<div>DOWN arrow: Move light Bulb DOWN</div>
+				<div>LEFT arrow: Move light Bulb LEFT</div>
+				<div>RIGHT arrow: Move light Bulb RIGHT</div>
+			</div>
+			<div
+				style="color:rgb(221, 213, 105); display:flex; flex-direction: row; justify-content:space-around; align-items: center;">
+				<div>w: go forward</div>
+				<div>a: turn left</div>
+				<div>d: turn right</div>
+				<div>s: go backward</div>
+				<div>space: jump</div>
+			</div>
+		</div>
+
+	</div>
 	<div id="container"></div>
 
 	<script src="../resources/ammo.wasm.js"></script>
 
 	<script type="module">
 		import * as THREE from '../resources/three.module.js';
-
 		import Stats from '../resources/stats.module.js';
-
-		import { OrbitControls } from 'https://threejsfundamentals.org/threejs/resources/threejs/r125/examples/jsm/controls/OrbitControls.js';
 		import { ConvexObjectBreaker } from '../resources/ConvexObjectBreaker.js';
 		import { ConvexGeometry } from '../resources/ConvexGeometry.js';
-
 		import { Octree } from '../resources/Octree.js';
 		import { Capsule } from '../resources/Capsule.js';
 
 		// - Global variables -
 
+		// scoring system
+		var score = 0;
+		var numShoot = 0;
+
 		//geometries
-		var cylinder;
+		var cylinder, cube, torus, sphere;
+		var sun, earth, moon;
 		var horizontalAngle = 0;
+		var verticalAngle = 0;
 		const TWO_PI = Math.PI * 2;
+		let light, lightSphere, lightX, lightY, lightZ;;
 
 		// Graphics variables
 		let container, stats;
@@ -133,31 +176,38 @@
 			renderer.shadowMap.enabled = true;
 			container.appendChild(renderer.domElement);
 
-			// controls = new OrbitControls(camera, renderer.domElement);
-			// controls.target.set(0, 2, 0);
-			// controls.update();
-
 			textureLoader = new THREE.TextureLoader();
 
 			const ambientLight = new THREE.AmbientLight(0x707070);
 			scene.add(ambientLight);
 
-			const light = new THREE.DirectionalLight(0xffffff, 1);
-			light.position.set(- 10, 18, 5);
+			light = new THREE.DirectionalLight('rgb(177,177,177)', 1);
+			lightX = -10;
+			lightY = 15;
+			lightZ = 5;
+			light.position.set(lightX, lightY, lightZ);
 			light.castShadow = true;
-			const d = 14;
+			const d = 20;
 			light.shadow.camera.left = - d;
 			light.shadow.camera.right = d;
 			light.shadow.camera.top = d;
 			light.shadow.camera.bottom = - d;
 
 			light.shadow.camera.near = 2;
-			light.shadow.camera.far = 50;
+			light.shadow.camera.far = 60;
 
 			light.shadow.mapSize.x = 1024;
 			light.shadow.mapSize.y = 1024;
 
 			scene.add(light);
+
+			// LIGHTBULB
+			const lightSphereGeometry = new THREE.SphereGeometry(0.59);
+			const lightSphereMaterial = new THREE.MeshBasicMaterial({ color: 'rgb(255,255,0)' });
+			lightSphere = new THREE.Mesh(lightSphereGeometry, lightSphereMaterial);
+			scene.add(lightSphere);
+			lightSphere.visible = true;
+			lightSphere.position.copy(light.position);
 
 			stats = new Stats();
 			stats.domElement.style.position = 'absolute';
@@ -165,7 +215,6 @@
 			container.appendChild(stats.domElement);
 
 			//
-
 			window.addEventListener('resize', onWindowResize);
 
 		}
@@ -186,7 +235,7 @@
 
 		}
 
-		function createObject(mass, halfExtents, pos, quat, material) {
+		function createObject(mass, halfExtents, pos, quat, material, objName) {
 			// let cylinder = new THREE.CylinderGeometry(halfExtents.x * 2, 0, halfExtents.z * 2);
 			// const object = new THREE.Mesh( cylinder, material );
 
@@ -194,27 +243,15 @@
 			object.position.copy(pos);
 			object.quaternion.copy(quat);
 			convexBreaker.prepareBreakableObject(object, mass, new THREE.Vector3(), new THREE.Vector3(), true);
-			createDebrisFromBreakableObject(object);
+			createDebrisFromBreakableObject(object, objName);
 
 		}
 
-		function createObjectAnyGeometry(object, mass, pos, quat) {
-
-			// const object = new THREE.Mesh(yourGeo, material);
+		function createObjectAnyGeometry(object, mass, pos, quat, objName) {
 			object.position.copy(pos);
 			object.quaternion.copy(quat);
 			convexBreaker.prepareBreakableObject(object, mass, new THREE.Vector3(), new THREE.Vector3(), true);
-			const tmp = createDebrisFromBreakableObject(object);
-
-
-			// const deltaTime = Math.min(0.1, clock.getDelta());
-			// horizontalAngle += 0.5 * deltaTime;
-			// if (horizontalAngle > TWO_PI)
-			// 	horizontalAngle -= TWO_PI;
-			// let newX = Math.sin(horizontalAngle) * - 4;
-			// pos.multiplyScalar(2);
-			// tmp.setLinearVelocity(new Ammo.btVector3(0, 20, 0));
-
+			const tmp = createDebrisFromBreakableObject(object, objName);
 		}
 
 		function createObjects() {
@@ -224,11 +261,11 @@
 			quat.set(0, 0, 0, 1);
 			const ground = createParalellepipedWithPhysics(50, 1, 50, 0, pos, quat, new THREE.MeshPhongMaterial({ color: 0xFFFFFF }));
 			ground.receiveShadow = true;
-			textureLoader.load("textures/grid.png", function (texture) {
+			textureLoader.load("../resources/grid.png", function (texture) {
 
 				texture.wrapS = THREE.RepeatWrapping;
 				texture.wrapT = THREE.RepeatWrapping;
-				texture.repeat.set(40, 40);
+				texture.repeat.set(50, 50);
 				ground.material.map = texture;
 				ground.material.needsUpdate = true;
 
@@ -248,6 +285,56 @@
 
 				keyStates[event.code] = true;
 
+				switch (event.keyCode) {
+					case 76: /* L */
+						light.visible = !light.visible;
+						lightSphere.visible = !lightSphere.visible;
+						break;
+
+					case 82: /* R */
+						light.color.setRGB(1, 0, 0)
+						break;
+
+					case 71: /* G */
+						light.color.setRGB(0, 1, 0)
+						break;
+
+					case 66: /* B */
+						light.color.setRGB(0, 0, 1)
+						break;
+
+					case 79: /* o */
+						light.color.setRGB(1, 1, 1)
+						break;
+
+					case 38: /* up */
+						lightY += 1
+						light.position.set(lightX, lightY, lightZ);
+						lightSphere.position.copy(light.position);
+						light.lookAt(scene.position);
+						break;
+
+					case 37: /* left */
+						lightX -= 1
+						light.position.set(lightX, lightY, lightZ);
+						lightSphere.position.copy(light.position);
+						light.lookAt(scene.position);
+						break;
+
+					case 39: /* right */
+						lightX += 1
+						light.position.set(lightX, lightY, lightZ);
+						lightSphere.position.copy(light.position);
+						light.lookAt(scene.position);
+						break;
+
+					case 40: /* down */
+						lightY -= 1
+						light.position.set(lightX, lightY, lightZ);
+						lightSphere.position.copy(light.position);
+						light.lookAt(scene.position);
+						break;
+				}
 			});
 			document.addEventListener('keyup', (event) => {
 
@@ -275,53 +362,118 @@
 
 			// cylinder
 			const cylinderMass = 100;
-			const cylinderHalfExtents = new THREE.Vector3(2, 2, 2);
-			pos.set(15, 2, 5);
+			const cylinderHalfExtents = new THREE.Vector3(0.4, 0.4, 2);
+			pos.set(15, 3.0, 5);
 			quat.set(0, 0, 0, 1);
-
 			const loaderCylinder = new THREE.TextureLoader();
 			const cylinderGeometry = new THREE.CylinderGeometry(cylinderHalfExtents.x * 2, cylinderHalfExtents.y * 2, cylinderHalfExtents.z * 2); //
-			// const cylinderMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(255,255,0)', emissive: 0x000020 });
-			const cylinderMaterial = new THREE.MeshPhongMaterial({ map: loaderCylinder.load('/resources/colors.png'), emissive: 0x000020 });
+			const cylinderMaterial = new THREE.MeshPhongMaterial({ map: loaderCylinder.load('../resources/colors.png'), emissive: 0x000020 });
 			cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+			createObjectAnyGeometry(cylinder, cylinderMass, pos, quat, "cylinder");
 
-			createObjectAnyGeometry(cylinder, cylinderMass, pos, quat);
+			// cube
+			const cubeMass = 100;
+			const cubeHalfExtents = new THREE.Vector3(0.5, 0.5, 0.5);
+			pos.set(-3, cubeHalfExtents.y, -9);
+			quat.set(0, 0, 0, 1);
+			const cubeGeometry = new THREE.BoxGeometry(cubeHalfExtents.x * 2, cubeHalfExtents.y * 2, cubeHalfExtents.z * 2); //
+			const cubeMaterial = new THREE.MeshLambertMaterial({ color: 'rgb(255,0,0)', emissive: 0x200000 });
+			cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+			createObjectAnyGeometry(cube, cubeMass, pos, quat, "cube");
+
+			// sphere
+			const sphereMass = 100;
+			const sphereHalfExtents = new THREE.Vector3(0.2, 10, 5);
+			pos.set(0, 0, 12);
+			quat.set(0, 0, 0, 1);
+			const sphereGeometry = new THREE.SphereGeometry(sphereHalfExtents.x * 2, sphereHalfExtents.y * 2, sphereHalfExtents.z * 2); //
+			const sphereMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(255,255,0)', emissive: 0x200000 });
+			sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+			createObjectAnyGeometry(sphere, sphereMass, pos, quat, "sphere");
+
+			// torus
+			const torusMass = 100;
+			const torusHalfExtents = new THREE.Vector3(0.2, 10, 5);
+			pos.set(1, 5, -12);
+			quat.set(0, 0, 0, 1);
+			const torusGeometry = new THREE.TorusGeometry(1, 0.2, 10, 16, TWO_PI); //
+			const torusMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(255,255,0)', emissive: 0x200000 });
+			torus = new THREE.Mesh(torusGeometry, torusMaterial);
+			createObjectAnyGeometry(torus, sphereMass, pos, quat, "torus");
+
+			// sun
+			const sunMass = 100;
+			pos.set(2, 10, 14);
+			quat.set(0, 0, 0, 1);
+			const loaderSun = new THREE.TextureLoader();
+			const sunGeometry = new THREE.SphereGeometry(2, 20, 10);
+			const sunMaterial = new THREE.MeshPhongMaterial({ map: loaderSun.load('/resources/sun.jpg'), emissive: 0x200000 });
+			sun = new THREE.Mesh(sunGeometry, sunMaterial);
+			createObjectAnyGeometry(sun, sunMass, pos, quat, "sun");
+
+			// earth
+			const earthMass = 10;
+			pos.set(0, 0.5, 5);
+			quat.set(0, 0, 0, 1);
+			const loaderearth = new THREE.TextureLoader();
+			const earthGeometry = new THREE.SphereGeometry(0.7, 20, 10);
+			const earthMaterial = new THREE.MeshPhongMaterial({ map: loaderearth.load('/resources/map.jpg'), emissive: 0x200000 });
+			earth = new THREE.Mesh(earthGeometry, earthMaterial);
+			createObjectAnyGeometry(earth, earthMass, pos, quat, "earth");
+
+			// moon
+			const moonMass = 1;
+			pos.set(0, 0.5, 1.5);
+			quat.set(0, 0, 0, 1);
+			const loadermoon = new THREE.TextureLoader();
+			const moonGeometry = new THREE.SphereGeometry(0.5, 20, 10);
+			const moonMaterial = new THREE.MeshPhongMaterial({ map: loadermoon.load('/resources/moon.jpg'), emissive: 0x200000 });
+			moon = new THREE.Mesh(moonGeometry, moonMaterial);
+			createObjectAnyGeometry(moon, moonMass, pos, quat, "moon");
+
+			// connect sun-earth-moon
+			sun.add(earth);
+			earth.add(moon);
 
 			// Tower 1
-			const towerMass = 1000;
+			const towerMass = 100;
 			const towerHalfExtents = new THREE.Vector3(2, 5, 2);
 			pos.set(- 8, 5, 0);
 			quat.set(0, 0, 0, 1);
-			createObject(towerMass, towerHalfExtents, pos, quat, createMaterial(0xB03014));
+			
+			createObject(towerMass, towerHalfExtents, pos, quat, createMaterial("rgb(151, 26, 153)"), "tower");
 
 			// Tower 2
 			pos.set(8, 5, 0);
 			quat.set(0, 0, 0, 1);
-			createObject(towerMass, towerHalfExtents, pos, quat, createMaterial(0xB03214));
+			createObject(towerMass, towerHalfExtents, pos, quat, createMaterial("rgb(151, 26, 153)"), "tower");
 
 			//Bridge
 			const bridgeMass = 100;
 			const bridgeHalfExtents = new THREE.Vector3(7, 0.2, 1.5);
 			pos.set(0, 10.2, 0);
 			quat.set(0, 0, 0, 1);
-			createObject(bridgeMass, bridgeHalfExtents, pos, quat, createMaterial(0xB3B865));
+			createObject(bridgeMass, bridgeHalfExtents, pos, quat, createMaterial('rgb(49, 168, 55)'), "bridge");
 
 			// Stones
 			const stoneMass = 120;
-			const stoneHalfExtents = new THREE.Vector3(1, 2, 0.15);
-			const numStones = 8;
+			const stoneHalfExtents = new THREE.Vector3(0.5, 1, 0.15);
+			const numStones = 10;
 			quat.set(0, 0, 0, 1);
 			for (let i = 0; i < numStones; i++) {
 
-				pos.set(0, 2, 15 * (0.5 - i / (numStones + 1)));
+				pos.set(0, 0, 15 * (0.5 - i / (numStones + 1)));
 
-				createObject(stoneMass, stoneHalfExtents, pos, quat, createMaterial(0xB0B0B0));
+				const stoneMaterial = new THREE.MeshPhongMaterial({ map: loadermoon.load('/resources/FloorsCheckerboard_S_Diffuse.jpeg'), emissive: 0x200000 });
+				createObject(stoneMass, stoneHalfExtents, pos, quat, stoneMaterial, "stone");
+
+				// createObject(stoneMass, stoneHalfExtents, pos, quat, createMaterial(0xB0B0B0), "stone");
 
 			}
 
 			// Mountain
 			const mountainMass = 860;
-			const mountainHalfExtents = new THREE.Vector3(4, 5, 4);
+			const mountainHalfExtents = new THREE.Vector3(2, 3, 2);
 			pos.set(5, mountainHalfExtents.y * 0.5, - 7);
 			quat.set(0, 0, 0, 1);
 			const mountainPoints = [];
@@ -330,11 +482,12 @@
 			mountainPoints.push(new THREE.Vector3(mountainHalfExtents.x, - mountainHalfExtents.y, - mountainHalfExtents.z));
 			mountainPoints.push(new THREE.Vector3(- mountainHalfExtents.x, - mountainHalfExtents.y, - mountainHalfExtents.z));
 			mountainPoints.push(new THREE.Vector3(0, mountainHalfExtents.y, 0));
-			const mountain = new THREE.Mesh(new ConvexGeometry(mountainPoints), createMaterial(0xB03814));
+			const mountainMaterial = new THREE.MeshPhongMaterial({ map: loadermoon.load('../resources/grass_dirt.png'), emissive: 0x200000 });
+			const mountain = new THREE.Mesh(new ConvexGeometry(mountainPoints), mountainMaterial);
 			mountain.position.copy(pos);
 			mountain.quaternion.copy(quat);
 			convexBreaker.prepareBreakableObject(mountain, mountainMass, new THREE.Vector3(), new THREE.Vector3(), true);
-			createDebrisFromBreakableObject(mountain);
+			createDebrisFromBreakableObject(mountain, "mountain");
 
 		}
 
@@ -441,6 +594,38 @@
 			}
 
 		}
+
+		// moving object
+		function moveObject(moveVector, rotateVector, object, offsetY, scalingFactor) {
+
+			let moveX = moveVector.x;
+			let moveY = moveVector.y;
+			let moveZ = moveVector.z;
+
+			let rotateX = rotateVector.x;
+			let rotateY = rotateVector.y;
+			let rotateZ = rotateVector.z;
+
+			// if (moveX == 0 && moveY == 0 && moveZ == 0) return;
+
+			if (object.position.y < offsetY) {
+				moveY = scalingFactor * 2;
+			}
+
+			// translation
+			let resultantImpulse = new Ammo.btVector3(moveX, moveY, moveZ)
+			resultantImpulse.op_mul(scalingFactor);
+
+			// rotation
+			let resultantImpulseRotate = new Ammo.btVector3(rotateX, rotateY, rotateZ)
+			resultantImpulseRotate.op_mul(scalingFactor * 6);
+
+			let physicsBody = object.userData.physicsBody;
+			physicsBody.setLinearVelocity(resultantImpulse);
+			physicsBody.setAngularVelocity(resultantImpulseRotate);
+
+		}
+
 		// -----------------------------------------------------------------------------------------------
 
 		function createParalellepipedWithPhysics(sx, sy, sz, mass, pos, quat, material) {
@@ -455,7 +640,7 @@
 
 		}
 
-		function createDebrisFromBreakableObject(object) {
+		function createDebrisFromBreakableObject(object, objName) {
 
 			object.castShadow = true;
 			object.receiveShadow = true;
@@ -463,7 +648,7 @@
 			const shape = createConvexHullPhysicsShape(object.geometry.attributes.position.array);
 			shape.setMargin(margin);
 
-			const body = createRigidBody(object, shape, object.userData.mass, null, null, object.userData.velocity, object.userData.angularVelocity);
+			const body = createRigidBody(object, shape, object.userData.mass, null, null, object.userData.velocity, object.userData.angularVelocity, objName);
 
 			// Set pointer back to the three object only in the debris objects
 			const btVecUserData = new Ammo.btVector3(0, 0, 0);
@@ -498,7 +683,7 @@
 
 		}
 
-		function createRigidBody(object, physicsShape, mass, pos, quat, vel, angVel) {
+		function createRigidBody(object, physicsShape, mass, pos, quat, vel, angVel, uniqueName) {
 
 			if (pos) {
 
@@ -548,6 +733,7 @@
 
 			object.userData.physicsBody = body;
 			object.userData.collided = false;
+			object.userData.myName = uniqueName; // added for scoring system
 
 			scene.add(object);
 
@@ -583,6 +769,8 @@
 
 			window.addEventListener('pointerdown', function (event) {
 
+				numShoot += 1;
+
 				mouseCoords.set(
 					(event.clientX / window.innerWidth) * 2 - 1,
 					- (event.clientY / window.innerHeight) * 2 + 1
@@ -592,7 +780,7 @@
 
 				// Creates a ball and throws it
 				const ballMass = 35;
-				const ballRadius = 0.4;
+				const ballRadius = 0.3;
 
 				const ball = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 14, 10), ballMaterial);
 				ball.castShadow = true;
@@ -632,18 +820,47 @@
 
 		function render() {
 
+			// score system 
+			document.getElementById("scores").innerHTML = score;
+			document.getElementById("shoots").innerHTML = numShoot;
+
 			// const deltaTime = clock.getDelta();
 
+			// time variables
 			const deltaTime = Math.min(0.1, clock.getDelta());
 
+			// angles
+			horizontalAngle += 0.8 * deltaTime;
+			if (horizontalAngle > TWO_PI) { horizontalAngle -= TWO_PI };
+			verticalAngle += 1.5 * deltaTime;
+			if (verticalAngle > TWO_PI) { verticalAngle -= TWO_PI };
+
+			// moving factors
+			let moveVec = new THREE.Vector3(Math.sin(horizontalAngle) * -1, Math.sin(verticalAngle) * 1, 0);
+			let rotateVec = new THREE.Vector3(0, deltaTime * 10, 0);
+			moveObject(moveVec, rotateVec, cylinder, 5, 10);
+			rotateVec = new THREE.Vector3(0, deltaTime * 10, deltaTime * 4);
+			moveObject(moveVec, rotateVec, cube, 1, 5);
+
+			moveVec = new THREE.Vector3(Math.cos(horizontalAngle) * -1, Math.cos(verticalAngle) * 1, 0);
+			rotateVec = new THREE.Vector3(deltaTime * -10, deltaTime * -10, 0);
+			moveObject(moveVec, rotateVec, torus, 3, 6);
+
+			moveVec = new THREE.Vector3(Math.cos(horizontalAngle) * -1, 0, 0);
+			rotateVec = new THREE.Vector3(deltaTime * 5, 0, 0);
+			moveObject(moveVec, rotateVec, sphere, 0, 10);
+
+			moveVec = new THREE.Vector3(0, Math.sin(verticalAngle), 0);
+			rotateVec = new THREE.Vector3(0, deltaTime * 20, 0);
+			moveObject(moveVec, rotateVec, sun, 5, 2);
+			moveObject(moveVec, rotateVec, earth, 0, 1);
+
+			// setup
 			updatePhysics(deltaTime);
 
 			playerControls(deltaTime);
 
 			updatePlayer(deltaTime);
-
-			// console.log("dddd "+cylinder.position.x);
-			// cylinder.position.x = 1;
 
 			renderer.render(scene, camera);
 
@@ -653,21 +870,6 @@
 
 			// Step world
 			physicsWorld.stepSimulation(deltaTime, 10);
-			const cylinderPos = cylinder.geometry.attributes.position.array;
-			const numVerts = cylinderPos.length / 3;
-			let indFloat = 0;
-			for (let i = 0; i < numVerts; i++) {
-
-				horizontalAngle += 0.1 * deltaTime;
-				if (horizontalAngle > TWO_PI)
-					horizontalAngle -= TWO_PI;
-					
-				cylinderPos[indFloat++] += (Math.cos(horizontalAngle) * 0.5);
-				cylinderPos[indFloat++] += (Math.sin(horizontalAngle) * 0.1);
-				indFloat++;
-			}
-
-			cylinder.geometry.attributes.position.needsUpdate = true;
 
 			// Update rigid bodies
 			for (let i = 0, il = rigidBodies.length; i < il; i++) {
@@ -802,9 +1004,42 @@
 
 			}
 
+			// console.log("nununu: " + numObjectsToRemove);
+
+			// scoring system
 			for (let i = 0; i < numObjectsToRemove; i++) {
 
 				removeDebris(objectsToRemove[i]);
+				const tmpName = objectsToRemove[i].userData.myName;
+				switch (tmpName) {
+					case "cylinder":
+						score += 10;
+						break;
+					case "cube":
+						score += 7;
+						break;
+					case "torus":
+						score += 5;
+						break;
+					case "sphere":
+						score += 3;
+						break;
+					case "sun":
+						score += 10;
+						break;
+					case "tower":
+						score += 1;
+						break;
+					case "bridge":
+						score += 3;
+						break;
+					case "stone":
+						score += 1;
+						break;
+					case "mountain":
+						score += 5;
+						break;
+				}
 
 			}
 

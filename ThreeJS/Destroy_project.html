@@ -354,7 +354,6 @@
 
 					camera.rotation.y -= event.movementX / 500;
 					camera.rotation.x -= event.movementY / 500;
-
 				}
 
 			});
@@ -440,7 +439,7 @@
 			const towerHalfExtents = new THREE.Vector3(2, 5, 2);
 			pos.set(- 8, 5, 0);
 			quat.set(0, 0, 0, 1);
-			
+
 			createObject(towerMass, towerHalfExtents, pos, quat, createMaterial("rgb(151, 26, 153)"), "tower");
 
 			// Tower 2
@@ -775,7 +774,6 @@
 					(event.clientX / window.innerWidth) * 2 - 1,
 					- (event.clientY / window.innerHeight) * 2 + 1
 				);
-
 				raycaster.setFromCamera(mouseCoords, camera);
 
 				// Creates a ball and throws it

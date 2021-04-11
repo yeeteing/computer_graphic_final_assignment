@@ -123,6 +123,9 @@
 		let playerOnFloor;
 		var keyStates = {};
 
+		//target
+		let circle;
+
 		init();
 		animate();
 
@@ -208,6 +211,12 @@
 			groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
 			groundMesh.position.y = 0.0; //this value must be slightly lower than the planeConstant (0.01) parameter above
 			scene.add(groundMesh);
+
+			const geometry = new THREE.TorusGeometry( 0.1, 0.001, 10, 32 );
+			const material = new THREE.MeshBasicMaterial( { color: 'red' } );
+			circle = new THREE.Mesh( geometry, material );
+			circle.position.set(14, 0.5, 12);
+			scene.add( circle );
 
 			// ---------------------------------------- world octree ----------------------------------------
 			worldOctree = new Octree();
@@ -440,6 +449,9 @@
 		function onMouseDown(e) {
 			console.log('c')
 
+			console.log(camera.position)
+			console.log(Math.sin(camera.rotation.y))
+			console.log(camera.rotation)
 			// weapons
 			const sphere = spheres[sphereIdx];
 			camera.getWorldDirection(playerDirection);
@@ -521,8 +533,12 @@
 
 			playerCollitions();
 
+			//target
+			// console.log(mesh.position)
+			// console.log(playerDirection)
+			
+			// console.log(playerCollider.end)
 			camera.position.copy(playerCollider.end);
-
 		}
 
 		// collision for weapons
@@ -699,6 +715,16 @@
 			moonShadow_right.update(groundPlane, lightPosition4D_right);
 			earthShadow_right.update(groundPlane, lightPosition4D_right);
 
+			circle.position.set(
+				camera.position.x - Math.sin(camera.rotation.y), camera.position.y + Math.tan(camera.rotation.x) , camera.position.z - Math.cos(camera.rotation.y)
+			)			
+			circle.lookAt(camera)
+			circle.rotation.set(
+				camera.rotation.x, camera.rotation.y, camera.rotation.z
+			)
+
+			
+			//console.log(circle.position)
 			renderer.render(scene, camera);
 		}
 

@@ -3,6 +3,9 @@ Group 15:
 Seokho Han(seokhoh@mun.ca) 201761541,  
 Yee Teing Lo(ytlo@mun.ca) 201805462
 
+### video link
+[Youtube](https://www.youtube.com/watch?v=lRmjQSqq8aI&ab_channel=DannyHan)
+
 ### Functionalities
 [x] illuminated scene. Two or more light sources to illuminate the scene.
     [x] switchable light using keyboard.
@@ -33,7 +36,7 @@ submission.
 2. move to './computer_graphic_final_assignment/'
 3. `python3 -m http.server`
 4. go to your local website ('http://localhost:8000') 
-5. open ThreeJS/ file
+5. open ThreeJS/ folder
 6. open `Destroy_project.html`
 
 ## References   
